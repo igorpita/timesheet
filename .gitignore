@@ -6,4 +6,5 @@ dist-package/
 *.tar.gz
 *.key
 *.crt
+*.csr
 
