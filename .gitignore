@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+docker/metabase_data/
+dist-package/
+*.tar.gz
+*.key
+*.crt
+

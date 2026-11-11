@@ -1,0 +1,69 @@
+services:
+  # Nextcloud com montagem do app OAB Timesheet em custom_apps
+  nextcloud:
+    image: nextcloud:35.0.2
+    container_name: oab_timesheet_nextcloud
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=nextcloud_secret
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=admin_secret
+      - NEXTCLOUD_TRUSTED_DOMAINS=localhost 127.0.0.1
+    volumes:
+      - nextcloud_data:/var/www/html
+      - ..:/var/www/html/custom_apps/oab_timesheet
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # PostgreSQL 16 para Nextcloud e Timesheet
+  postgres:
+    image: postgres:16-alpine
+    container_name: oab_timesheet_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD=nextcloud_secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nextcloud -d nextcloud"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Metabase para BI e Dashboards Gerenciais da TI
+  metabase:
+    image: metabase/metabase:latest
+    container_name: oab_timesheet_metabase
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=metabase
+      - MB_DB_PORT=5432
+      - MB_DB_USER=nextcloud
+      - MB_DB_PASS=nextcloud_secret
+      - MB_DB_HOST=postgres
+      - MB_SESSION_SECRET_KEY=oab_timesheet_metabase_secret_session_key_2026
+    volumes:
+      - metabase_data:/metabase-data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  nextcloud_data:
+  postgres_data:
+  metabase_data:
+

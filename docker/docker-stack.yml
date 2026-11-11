@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # App Nextcloud com o OAB Timesheet instalado em custom_apps
+  nextcloud:
+    image: nextcloud:35.0.2
+    networks:
+      - traefik-public
+      - timesheet-backend
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD_FILE=/run/secrets/pg_password
+      - NEXTCLOUD_TRUSTED_DOMAINS=portal.oab-ba.org.br
+      - OVERWRITEPROTOCOL=https
+      - OVERWRITEHOST=portal.oab-ba.org.br
+    volumes:
+      - nextcloud_data:/var/www/html
+      - timesheet_app:/var/www/html/custom_apps/oab_timesheet
+    secrets:
+      - pg_password
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.http.routers.nextcloud.rule=Host(`portal.oab-ba.org.br`)"
+        - "traefik.http.routers.nextcloud.entrypoints=websecure"
+        - "traefik.http.routers.nextcloud.tls.certresolver=letsencrypt"
+        - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
+
+  # PostgreSQL Dedicado com Volumes Persistentes
+  postgres:
+    image: postgres:16-alpine
+    networks:
+      - timesheet-backend
+    environment:
+      - POSTGRES_DB=nextcloud
+      - POSTGRES_USER=nextcloud
+      - POSTGRES_PASSWORD_FILE=/run/secrets/pg_password
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    secrets:
+      - pg_password
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1536M
+
+  # Metabase para Painéis e BI da Diretoria/Coordenação de TI
+  metabase:
+    image: metabase/metabase:latest
+    networks:
+      - traefik-public
+      - timesheet-backend
+    environment:
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=metabase
+      - MB_DB_PORT=5432
+      - MB_DB_USER=nextcloud
+      - MB_DB_PASS_FILE=/run/secrets/pg_password
+      - MB_DB_HOST=postgres
+    volumes:
+      - metabase_data:/metabase-data
+    secrets:
+      - pg_password
+    deploy:
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.http.routers.metabase.rule=Host(`bi-timesheet.oab-ba.org.br`)"
+        - "traefik.http.routers.metabase.entrypoints=websecure"
+        - "traefik.http.routers.metabase.tls.certresolver=letsencrypt"
+        - "traefik.http.services.metabase.loadbalancer.server.port=3000"
+
+networks:
+  traefik-public:
+    external: true
+  timesheet-backend:
+    driver: overlay
+
+volumes:
+  nextcloud_data:
+  timesheet_app:
+  pg_data:
+  metabase_data:
+
+secrets:
+  pg_password:
+    external: true
+
