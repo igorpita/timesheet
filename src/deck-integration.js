@@ -88,9 +88,9 @@
     }
 
     function extractCardTitle(cardId) {
-        const modal = document.querySelector('.modal-container, [role="dialog"], aside.app-sidebar, .app-modal');
+        const modal = document.querySelector('.modal__card, .modal-container, [role="dialog"], aside.app-sidebar');
         if (modal) {
-            const headings = modal.querySelectorAll('h1, h2, h3, h4, input.card-title, textarea, [contenteditable]');
+            const headings = modal.querySelectorAll('input.app-sidebar-header__mainname, .app-sidebar-header__mainname, h1, h2, h3, h4, input.card-title, textarea, [contenteditable]');
             for (const el of headings) {
                 const text = (el.value || el.textContent || '').trim();
                 if (text && !text.includes('Detalhes do cartão') && !text.includes('Timesheet') && text.length > 2) {
@@ -101,6 +101,48 @@
         return `Cartão #${cardId}`;
     }
 
+    /**
+     * Localiza o container estritamente dentro do modal do cartão do Nextcloud Deck.
+     * Retorna null se o modal ainda estiver abrindo ou renderizando, evitando vazar para a janela principal.
+     */
+    function findCardTargetContainer() {
+        // 1. Prioridade máxima: Aba "Detalhes" ativa do cartão do Deck
+        const activeTab = document.querySelector(
+            '.modal__card section.app-sidebar__tab--active, ' +
+            '.modal-container section.app-sidebar__tab--active, ' +
+            '#details.app-sidebar__tab, ' +
+            'section[aria-labelledby="details"], ' +
+            'aside.app-sidebar section.app-sidebar__tab--active'
+        );
+        if (activeTab) {
+            return activeTab;
+        }
+
+        // 2. Qualquer aba ativa ou painel de abas dentro do modal do cartão
+        const modalTab = document.querySelector(
+            '.modal__card .app-sidebar__tab, ' +
+            '.modal-container .app-sidebar__tab, ' +
+            '.modal-container .app-sidebar-tabs__content, ' +
+            '.modal__card .app-sidebar-tabs__content'
+        );
+        if (modalTab) {
+            return modalTab;
+        }
+
+        // 3. Fallback restrito: container de abas dentro do modal do cartão
+        const modalBody = document.querySelector(
+            '.modal__card .app-sidebar-tabs, ' +
+            '.modal-container .modal-container__content, ' +
+            '.modal__card .app-sidebar'
+        );
+        if (modalBody) {
+            return modalBody;
+        }
+
+        // Se o modal do cartão ainda não está no DOM, NÃO injeta em nada da janela principal!
+        return null;
+    }
+
     async function checkCurrentCard() {
         if (isChecking) return;
         isChecking = true;
@@ -109,41 +151,46 @@
             const cardId = extractCardId();
             if (!cardId) {
                 lastCardId = null;
+                // Remove qualquer widget remanescente ao fechar o cartão
+                document.querySelectorAll('.oab-deck-timesheet-box').forEach(el => el.remove());
                 return;
             }
 
-            // Se o widget já existe e está visível no cartão atual, não recria
+            // Encontra o container alvo estritamente DENTRO do modal do cartão
+            const targetContainer = findCardTargetContainer();
+            if (!targetContainer) {
+                // Modal do cartão ainda está abrindo ou animando no Vue; aguarda próximo ciclo
+                return;
+            }
+
+            // Remove qualquer widget que tenha sido inserido fora do container correto (limpeza de resquícios)
+            const misplaced = document.querySelectorAll('.oab-deck-timesheet-box');
+            misplaced.forEach(el => {
+                if (!targetContainer.contains(el)) {
+                    el.remove();
+                }
+            });
+
+            // Se o widget já existe e está corretamente posicionado dentro do container, não recria
             const existingWidget = document.getElementById(`deck-timesheet-widget-${cardId}`);
-            if (existingWidget && document.body.contains(existingWidget)) {
+            if (existingWidget && targetContainer.contains(existingWidget)) {
                 return;
             }
 
             lastCardId = cardId;
-            await injectTimesheetWidget(cardId);
+            await injectTimesheetWidget(cardId, targetContainer);
         } finally {
             isChecking = false;
         }
     }
 
-    async function injectTimesheetWidget(cardId) {
-        // Encontra o container alvo dentro do modal do Nextcloud Deck ou sidebar
-        const tabpanel = document.querySelector(
-            '.modal-container__content [role="tabpanel"], [role="dialog"] [role="tabpanel"], .modal__content [role="tabpanel"], .modal-container [role="tabpanel"]'
-        );
-        const modalContent = document.querySelector(
-            '.modal-container__content, [role="dialog"], .modal__content, .modal-container'
-        );
-        const sidebar = document.querySelector(
-            'aside.app-sidebar .app-sidebar-tabs__content, aside.app-sidebar, .app-content-details'
-        );
-
-        const targetContainer = tabpanel || modalContent || sidebar;
+    async function injectTimesheetWidget(cardId, targetContainer) {
         if (!targetContainer) {
             return;
         }
 
-        // Evita duplicidade se já estiver injetado
-        if (document.getElementById(`deck-timesheet-widget-${cardId}`)) {
+        // Evita duplicidade se já estiver injetado dentro do alvo
+        if (targetContainer.querySelector(`#deck-timesheet-widget-${cardId}`)) {
             return;
         }
 
@@ -170,15 +217,15 @@
         widget.id = `deck-timesheet-widget-${cardId}`;
         widget.className = 'oab-deck-timesheet-box';
         widget.style.cssText = `
-            background: rgba(22, 163, 74, 0.12) !important;
-            border: 1px solid rgba(34, 197, 94, 0.45) !important;
+            background: rgba(22, 163, 74, 0.10) !important;
+            border: 1px solid rgba(34, 197, 94, 0.40) !important;
             border-radius: 8px !important;
-            padding: 12px 16px !important;
-            margin: 12px 0 16px 0 !important;
+            padding: 10px 14px !important;
+            margin: 10px 0 14px 0 !important;
             display: flex !important;
             align-items: center !important;
             justify-content: space-between !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
             box-sizing: border-box !important;
             width: 100% !important;
@@ -186,17 +233,17 @@
 
         widget.innerHTML = `
             <div style="display: flex; flex-direction: column;">
-                <span style="font-size: 11px; text-transform: uppercase; color: #22c55e; font-weight: 800; letter-spacing: 0.6px;">⏱️ Timesheet</span>
-                <span style="font-size: 13px; color: inherit; margin-top: 3px;">
-                    <strong id="deck-ts-total-${cardId}" style="font-size: 16px; font-weight: 800; color: #22c55e;">${totalHours}</strong> acumuladas neste cartão
+                <span style="font-size: 11px; text-transform: uppercase; color: #16a34a; font-weight: 800; letter-spacing: 0.6px;">⏱️ Timesheet</span>
+                <span style="font-size: 13px; color: inherit; margin-top: 2px;">
+                    <strong id="deck-ts-total-${cardId}" style="font-size: 15px; font-weight: 800; color: #16a34a;">${totalHours}</strong> acumuladas neste cartão
                 </span>
             </div>
-            <button type="button" id="deck-open-ts-btn-${cardId}" style="background: #16a34a !important; color: #ffffff !important; border: none !important; border-radius: 6px !important; padding: 8px 16px !important; font-size: 13px !important; font-weight: 700 !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 6px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important; transition: background 0.15s ease !important;">
+            <button type="button" id="deck-open-ts-btn-${cardId}" style="background: #16a34a !important; color: #ffffff !important; border: none !important; border-radius: 6px !important; padding: 7px 14px !important; font-size: 12.5px !important; font-weight: 700 !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 5px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important; transition: all 0.15s ease !important;">
                 ➕ Apontar Horas
             </button>
         `;
 
-        // Ponto de inserção: insere no topo do tabpanel (aba Detalhes)
+        // Ponto de inserção: insere no topo do container (aba Detalhes)
         if (targetContainer.firstChild) {
             targetContainer.insertBefore(widget, targetContainer.firstChild);
         } else {
