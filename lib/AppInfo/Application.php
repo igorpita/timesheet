@@ -32,7 +32,8 @@ class Application extends App implements IBootstrap {
                 $c->get(AuditLogMapper::class),
                 $c->get(SyncQueueMapper::class),
                 $c->get(SecurityService::class),
-                $c->get(DeckService::class)
+                $c->get(DeckService::class),
+                $c->get(\OCP\IUserManager::class)
             );
         });
 

@@ -46,8 +46,12 @@
           <label class="ts-filter-label">Filtrar por Colaborador</label>
           <select v-model="selectedCollaborator" class="ts-select ts-report-input">
             <option value="">👥 Todos os Colaboradores</option>
-            <option v-for="user in availableCollaborators" :key="user" :value="user">
-              {{ user }}
+            <option
+              v-for="user in availableCollaborators"
+              :key="typeof user === 'object' ? user.uid : user"
+              :value="typeof user === 'object' ? user.uid : user"
+            >
+              {{ typeof user === 'object' ? (user.displayName || user.uid) : user }}
             </option>
           </select>
         </div>
@@ -222,8 +226,8 @@
             <tr v-for="user in summarizedByCollaborator" :key="user.userUid">
               <td>
                 <div class="ts-user-col-info">
-                  <span class="ts-avatar-small">{{ user.userUid.substring(0, 2).toUpperCase() }}</span>
-                  <strong>{{ user.userUid }}</strong>
+                  <span class="ts-avatar-small">{{ (user.userDisplayName || user.userUid).substring(0, 2).toUpperCase() }}</span>
+                  <strong>{{ user.userDisplayName || user.userUid }}</strong>
                 </div>
               </td>
               <td style="text-align: center;">
@@ -289,7 +293,7 @@
                 <strong>{{ formatDate(entry.workDate) }}</strong>
               </td>
               <td>
-                <span class="ts-user-pill">{{ entry.userUid }}</span>
+                <span class="ts-user-pill" :title="entry.userUid">{{ entry.userDisplayName || entry.userUid }}</span>
               </td>
               <td>
                 <span class="ts-project-pill">📁 {{ entry.projectName }}</span>
@@ -428,9 +432,11 @@ export default {
 
       for (const e of this.filteredEntries) {
         const u = e.userUid || 'anônimo';
+        const dName = e.userDisplayName || u;
         if (!map[u]) {
           map[u] = {
             userUid: u,
+            userDisplayName: dName,
             totalMinutes: 0,
             count: 0,
             daysMap: {}
@@ -452,6 +458,7 @@ export default {
 
         return {
           userUid: u.userUid,
+          userDisplayName: u.userDisplayName,
           daysWorked: Object.keys(u.daysMap).length,
           count: u.count,
           totalMinutes: u.totalMinutes,

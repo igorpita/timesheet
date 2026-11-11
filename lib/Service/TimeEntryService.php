@@ -19,7 +19,8 @@ class TimeEntryService {
         private AuditLogMapper $auditMapper,
         private SyncQueueMapper $syncMapper,
         private SecurityService $securityService,
-        private ?DeckService $deckService = null
+        private ?DeckService $deckService = null,
+        private ?\OCP\IUserManager $userManager = null
     ) {}
 
     public function getUserEntries(?string $startDate = null, ?string $endDate = null): array {
@@ -55,10 +56,12 @@ class TimeEntryService {
         $totalMinutes = 0;
         $projectAggregates = [];
         $userAggregates = [];
+        $cardBoardCache = [];
+        $userDisplayCache = [];
 
         foreach ($rawEntries as $entry) {
             $extTitle = $entry->getExternalTitle() ?? '';
-            $projectName = 'Projeto Geral (Deck)';
+            $projectName = null;
             $cardTitle = $extTitle;
 
             if (preg_match('/^\[(.*?)\]\s*(.*)$/', $extTitle, $matches)) {
@@ -66,8 +69,50 @@ class TimeEntryService {
                 $cardTitle = trim($matches[2]);
             }
 
+            // Se o título não continha [Nome do Quadro] ou veio sem projeto, busca em tempo real no Deck pelo ID do cartão
+            if ((empty($projectName) || $projectName === 'Projeto Geral (Deck)') && $entry->getSourceType() === 'DECK') {
+                $extId = (string)$entry->getExternalId();
+                if (!isset($cardBoardCache[$extId])) {
+                    $cardData = ($this->deckService !== null) ? $this->deckService->getCardById($extId) : null;
+                    if ($cardData !== null && !empty($cardData['boardTitle'])) {
+                        $cardBoardCache[$extId] = [
+                            'boardTitle' => $cardData['boardTitle'],
+                            'cardTitle' => !empty($cardData['title']) ? $cardData['title'] : $cardTitle,
+                        ];
+                    } else {
+                        $cardBoardCache[$extId] = null;
+                    }
+                }
+
+                if ($cardBoardCache[$extId] !== null) {
+                    $projectName = $cardBoardCache[$extId]['boardTitle'];
+                    if (empty($cardTitle) || $cardTitle === $extTitle) {
+                        $cardTitle = $cardBoardCache[$extId]['cardTitle'];
+                    }
+                }
+            }
+
+            if (empty($projectName)) {
+                $projectName = 'Projeto Geral (Deck)';
+            }
+
             $u = $entry->getUserUid();
-            $collaboratorsSet[$u] = true;
+            if (!isset($userDisplayCache[$u])) {
+                $displayName = $u;
+                if ($this->userManager !== null) {
+                    $uObj = $this->userManager->get($u);
+                    if ($uObj !== null && !empty($uObj->getDisplayName())) {
+                        $displayName = $uObj->getDisplayName();
+                    }
+                }
+                $userDisplayCache[$u] = $displayName;
+            }
+            $userDisplayName = $userDisplayCache[$u];
+
+            $collaboratorsSet[$u] = [
+                'uid' => $u,
+                'displayName' => $userDisplayName
+            ];
             $projectsSet[$projectName] = true;
 
             $duration = $entry->getDurationMinutes() ?? 0;
@@ -90,6 +135,7 @@ class TimeEntryService {
             if (!isset($userAggregates[$u])) {
                 $userAggregates[$u] = [
                     'userUid' => $u,
+                    'userDisplayName' => $userDisplayName,
                     'totalMinutes' => 0,
                     'count' => 0,
                     'workDates' => [],
@@ -102,6 +148,7 @@ class TimeEntryService {
             $entryArray = $entry->jsonSerialize();
             $entryArray['projectName'] = $projectName;
             $entryArray['cardTitle'] = $cardTitle;
+            $entryArray['userDisplayName'] = $userDisplayName;
             $entries[] = $entryArray;
         }
 
@@ -130,6 +177,7 @@ class TimeEntryService {
             $pct = $totalMinutes > 0 ? round(($mins / $totalMinutes) * 100, 1) : 0;
             $byCollaborator[] = [
                 'userUid' => $uName,
+                'userDisplayName' => $uData['userDisplayName'] ?? $uName,
                 'daysWorked' => count($uData['workDates']),
                 'count' => $uData['count'],
                 'totalMinutes' => $mins,
@@ -144,8 +192,8 @@ class TimeEntryService {
             'entries' => $entries,
             'totalMinutes' => $totalMinutes,
             'totalHoursFormatted' => sprintf('%02dh%02d', intdiv($totalMinutes, 60), $totalMinutes % 60),
-            'collaborators' => array_keys($collaboratorsSet),
-            'projects' => array_keys($projectsSet),
+            'collaborators' => array_values($collaboratorsSet),
+            'projects' => array_values(array_filter(array_keys($projectsSet))),
             'byProject' => $byProject,
             'byCollaborator' => $byCollaborator,
             'isManager' => $isManager,
@@ -210,19 +258,24 @@ class TimeEntryService {
             throw new \InvalidArgumentException('O identificador externo (cartão ou chamado) é obrigatório.');
         }
 
-        // Validação de Permissões para cartões do Nextcloud Deck
+        // Validação de Permissões para cartões do Nextcloud Deck e enriquecimento com nome do Quadro
         $externalTitle = $data['externalTitle'] ?? null;
         if ($sourceType === 'DECK' && $this->deckService !== null) {
             if (is_numeric($externalId)) {
                 if (!$this->deckService->canUserAccessCard($externalId, $currentUserUid)) {
                     throw new \RuntimeException('Permissão negada: você não possui acesso a este cartão ou projeto no Nextcloud Deck.');
                 }
-                // Preenche o título do cartão automaticamente caso venha vazio
-                if (empty($externalTitle)) {
-                    $card = $this->deckService->getCardById($externalId);
-                    if ($card !== null) {
-                        $externalTitle = sprintf('[%s] %s', $card['boardTitle'], $card['title']);
+                
+                // Busca os dados do cartão para sempre vincular ao Quadro correto: [Nome do Quadro] Título
+                $card = $this->deckService->getCardById($externalId);
+                if ($card !== null && !empty($card['boardTitle'])) {
+                    $cleanTitle = !empty($card['title']) ? $card['title'] : ($externalTitle ?: sprintf('Cartão #%s', $externalId));
+                    if (preg_match('/^\[(.*?)\]\s*(.*)$/', $cleanTitle, $m)) {
+                        $cleanTitle = trim($m[2]);
                     }
+                    $externalTitle = sprintf('[%s] %s', $card['boardTitle'], $cleanTitle);
+                } elseif (empty($externalTitle)) {
+                    $externalTitle = sprintf('Cartão #%s', $externalId);
                 }
             }
         }
