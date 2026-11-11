@@ -11,7 +11,7 @@ Principais recursos:
 - Painel analítico e sumarizado de horas por projeto, período e colaborador.
 - Integração direta no cartão do Nextcloud Deck para apontamento ágil.
 - Auditoria completa de alterações e relatórios gerenciais com exportação CSV.]]></description>
-    <version>0.2.8</version>
+    <version>0.2.9</version>
     <licence>agpl</licence>
     <author>Igor Pita</author>
     <namespace>OABTimesheet</namespace>

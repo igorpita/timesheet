@@ -5,29 +5,69 @@
         <h2>Projetos — Nextcloud Deck</h2>
         <p class="ts-subtitle">Consulte os quadros e cartões aos quais você possui permissão e aponte horas diretamente</p>
       </div>
-      <div class="ts-search-box">
-        <input
-          type="text"
-          v-model="searchQuery"
-          @input="handleSearch"
-          placeholder="Pesquisar cartão por título ou descrição..."
-          class="ts-input ts-search-deck-input"
-        />
-      </div>
     </div>
 
-    <!-- Lista de Quadros em Abas -->
-    <div class="ts-boards-tabs">
-      <button
-        v-for="board in boards"
-        :key="board.id"
-        class="ts-board-tab-btn"
-        :class="{ active: selectedBoardId === board.id }"
-        @click="selectBoard(board.id)"
-      >
-        <span class="ts-board-dot" :style="{ backgroundColor: '#' + board.color }"></span>
-        {{ board.title }}
-      </button>
+    <!-- Barra de Controle: Seletor de Quadro & Filtros de Cartão -->
+    <div class="ts-card ts-deck-toolbar-card">
+      <div class="ts-deck-toolbar-grid">
+        <!-- 1. Seletor de Quadro / Projeto -->
+        <div class="ts-toolbar-group ts-toolbar-board">
+          <label class="ts-toolbar-label">
+            📁 Quadro / Projeto
+            <span class="ts-count-tag" v-if="boards.length > 0">{{ filteredBoards.length }} de {{ boards.length }}</span>
+          </label>
+          <div class="ts-board-input-row">
+            <select
+              v-model="selectedBoardId"
+              @change="onBoardSelectChange"
+              class="ts-select ts-board-select"
+            >
+              <option v-if="filteredBoards.length === 0" disabled value="">
+                Nenhum quadro encontrado
+              </option>
+              <option
+                v-for="board in filteredBoards"
+                :key="board.id"
+                :value="board.id"
+              >
+                {{ board.title }}
+              </option>
+            </select>
+            <input
+              type="text"
+              v-model="boardSearchText"
+              @input="onBoardFilterInput"
+              placeholder="🔍 Filtrar quadro..."
+              class="ts-input ts-board-filter-input"
+              title="Digite para filtrar os quadros disponíveis"
+            />
+          </div>
+        </div>
+
+        <!-- 2. Busca e Filtro de Cartões -->
+        <div class="ts-toolbar-group ts-toolbar-cards">
+          <label class="ts-toolbar-label">🔎 Filtrar Cartões</label>
+          <div class="ts-cards-filter-row">
+            <input
+              type="text"
+              v-model="searchQuery"
+              @input="handleSearch"
+              placeholder="Pesquisar cartão por título..."
+              class="ts-input ts-search-deck-input"
+            />
+            <button
+              type="button"
+              class="ts-filter-assigned-btn"
+              :class="{ active: onlyAssignedToMe }"
+              @click="onlyAssignedToMe = !onlyAssignedToMe"
+              title="Exibir somente cartões onde você está atribuído"
+            >
+              <span class="ts-filter-icon">{{ onlyAssignedToMe ? '☑️' : '◻️' }}</span>
+              <span>Atribuídos a mim</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Cartões do Quadro Selecionado -->
@@ -37,7 +77,10 @@
           <h3>Cartões disponíveis para apontamento</h3>
           <span class="ts-card-subtitle" v-if="selectedBoard">Quadro: <strong>{{ selectedBoard.title }}</strong></span>
         </div>
-        <span class="ts-badge ts-badge-deck">{{ cards.length }} cartões</span>
+        <div class="ts-header-badges">
+          <span v-if="onlyAssignedToMe" class="ts-badge ts-badge-filtered">Filtro: Atribuídos a mim</span>
+          <span class="ts-badge ts-badge-deck">{{ filteredCards.length }} {{ filteredCards.length === 1 ? 'cartão' : 'cartões' }}</span>
+        </div>
       </div>
 
       <div v-if="loadingCards" class="ts-empty-state">
@@ -45,8 +88,9 @@
         <p>Carregando cartões do Deck...</p>
       </div>
 
-      <div v-else-if="cards.length === 0" class="ts-empty-state">
-        <p>Nenhum cartão encontrado neste quadro.</p>
+      <div v-else-if="filteredCards.length === 0" class="ts-empty-state">
+        <p v-if="onlyAssignedToMe">Nenhum cartão atribuído a você encontrado neste quadro.</p>
+        <p v-else>Nenhum cartão encontrado neste quadro.</p>
       </div>
 
       <div v-else class="ts-card-list">
@@ -58,7 +102,7 @@
           <div class="ts-col-th ts-th-actions">Ações</div>
         </div>
 
-        <div v-for="card in cards" :key="card.id" class="ts-deck-task-row">
+        <div v-for="card in filteredCards" :key="card.id" class="ts-deck-task-row">
           <!-- Coluna 1: Tarefa, ID, Quadro e Tags -->
           <div class="ts-deck-col-task">
             <div class="ts-deck-task-title-wrap">
@@ -161,6 +205,8 @@ export default {
       boards: [],
       cards: [],
       selectedBoardId: null,
+      boardSearchText: '',
+      onlyAssignedToMe: false,
       loadingCards: false,
       searchQuery: '',
       historyModalOpen: false,
@@ -172,6 +218,20 @@ export default {
   computed: {
     selectedBoard() {
       return this.boards.find(b => b.id === this.selectedBoardId) || null;
+    },
+    filteredBoards() {
+      const q = (this.boardSearchText || '').trim().toLowerCase();
+      const sorted = [...this.boards].sort((a, b) =>
+        (a.title || '').localeCompare(b.title || '', 'pt-BR', { sensitivity: 'base' })
+      );
+      if (!q) return sorted;
+      return sorted.filter(b => (b.title || '').toLowerCase().includes(q));
+    },
+    filteredCards() {
+      if (!this.onlyAssignedToMe) {
+        return this.cards;
+      }
+      return this.cards.filter(c => c.assigned === true);
     }
   },
   async mounted() {
@@ -212,10 +272,28 @@ export default {
         const res = await TimeEntryService.getDeckBoards();
         this.boards = res.data || [];
         if (this.boards.length > 0) {
-          this.selectBoard(this.boards[0].id);
+          const sorted = [...this.boards].sort((a, b) =>
+            (a.title || '').localeCompare(b.title || '', 'pt-BR', { sensitivity: 'base' })
+          );
+          this.selectBoard(sorted[0].id);
         }
       } catch (e) {
         console.error('Erro ao carregar boards', e);
+      }
+    },
+
+    onBoardSelectChange() {
+      if (this.selectedBoardId) {
+        this.selectBoard(this.selectedBoardId);
+      }
+    },
+
+    onBoardFilterInput() {
+      if (this.filteredBoards.length > 0) {
+        const found = this.filteredBoards.some(b => b.id === this.selectedBoardId);
+        if (!found) {
+          this.selectBoard(this.filteredBoards[0].id);
+        }
       }
     },
 
@@ -278,11 +356,141 @@ export default {
 </script>
 
 <style scoped>
-.ts-search-deck-input {
-  min-width: 300px !important;
-  width: 340px !important;
-  height: 40px !important;
+/* Toolbar de Controle de Projetos e Cartões */
+.ts-deck-toolbar-card {
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.ts-deck-toolbar-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.ts-toolbar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ts-toolbar-board {
+  flex: 1.5 1 340px;
+}
+
+.ts-toolbar-cards {
+  flex: 1.8 1 380px;
+}
+
+.ts-toolbar-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ts-count-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  background-color: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: none;
+}
+
+.ts-board-input-row,
+.ts-cards-filter-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ts-board-select {
+  flex: 1.6;
+  height: 42px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.ts-board-filter-input {
+  flex: 1;
+  height: 42px !important;
   font-size: 13px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  background-color: #f8fafc !important;
+}
+
+.ts-board-filter-input:focus {
+  background-color: #ffffff !important;
+}
+
+.ts-search-deck-input {
+  flex: 1;
+  height: 42px !important;
+  font-size: 13px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+}
+
+.ts-filter-assigned-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  background-color: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  transition: all 0.2s ease;
+}
+
+.ts-filter-assigned-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.ts-filter-assigned-btn.active {
+  background-color: #e0f2fe;
+  border-color: #0284c7;
+  color: #0369a1;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.2);
+}
+
+.ts-filter-icon {
+  font-size: 13px;
+}
+
+.ts-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ts-badge-filtered {
+  background-color: #e0f2fe;
+  color: #0369a1;
 }
 
 /* Cabeçalho das Colunas do Grid de Cartões */

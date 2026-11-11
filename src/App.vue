@@ -18,14 +18,6 @@
           📁 Projetos (Deck)
         </button>
         <button
-          v-if="isManager"
-          class="ts-nav-item"
-          :class="{ active: currentTab === 'team' }"
-          @click="currentTab = 'team'"
-        >
-          👥 Equipe
-        </button>
-        <button
           class="ts-nav-item"
           :class="{ active: currentTab === 'reports' }"
           @click="currentTab = 'reports'"
@@ -54,10 +46,6 @@
         @quick-log="handleQuickLog"
       />
 
-      <TeamView
-        v-else-if="currentTab === 'team'"
-      />
-
       <ReportsView
         v-else-if="currentTab === 'reports'"
       />
@@ -83,7 +71,6 @@
 <script>
 import MyTimesheetView from './views/MyTimesheetView.vue';
 import DeckProjectsView from './views/DeckProjectsView.vue';
-import TeamView from './views/TeamView.vue';
 import ReportsView from './views/ReportsView.vue';
 import NewEntryModal from './components/NewEntryModal.vue';
 import AuditModal from './components/AuditModal.vue';
@@ -94,7 +81,6 @@ export default {
   components: {
     MyTimesheetView,
     DeckProjectsView,
-    TeamView,
     ReportsView,
     NewEntryModal,
     AuditModal

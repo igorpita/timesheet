@@ -188,12 +188,19 @@ class DeckService {
             $result = $qb->executeQuery();
             $cards = [];
             while ($row = $result->fetch()) {
+                $cardId = (string)$row['id'];
+                $assigned = $this->isUserAssignedToCard($cardId, $userUid);
+                $totalMinutes = $this->getTotalMinutesForCard($cardId);
                 $cards[] = [
-                    'id' => (string)$row['id'],
+                    'id' => $cardId,
                     'boardId' => (string)$row['board_id'],
                     'boardTitle' => $row['board_title'],
                     'title' => $row['title'],
+                    'description' => $row['description'] ?? '',
                     'stack' => $row['stack_title'],
+                    'assigned' => $assigned,
+                    'totalMinutes' => $totalMinutes,
+                    'totalHoursFormatted' => sprintf('%02dh%02d', intdiv($totalMinutes, 60), $totalMinutes % 60),
                 ];
             }
             return $cards;

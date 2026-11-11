@@ -4,7 +4,7 @@
     <div class="ts-view-header">
       <div>
         <h2>Meu Timesheet</h2>
-        <p class="ts-subtitle">Acompanhamento e registro das suas atividades em projetos e chamados</p>
+        <p class="ts-subtitle">Acompanhamento e registro das suas atividades em projetos e demandas</p>
       </div>
       <div class="ts-header-actions">
         <!-- Alternador de Visualização -->
@@ -73,7 +73,7 @@
         <table class="ts-table ts-week-table">
           <thead>
             <tr>
-              <th class="ts-activity-col">Atividade / Cartão / Chamado</th>
+              <th class="ts-activity-col">Atividade / Cartão (Deck)</th>
               <th v-for="day in weekDays" :key="day.date" class="ts-day-col" :class="{ 'ts-today-col': day.isToday }">
                 <div class="ts-day-header">
                   <span class="ts-day-name">{{ day.label }}</span>

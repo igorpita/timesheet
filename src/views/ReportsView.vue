@@ -13,9 +13,6 @@
         <button class="ts-btn ts-btn-outline" @click="printReport" title="Imprimir ou salvar em PDF">
           🖨️ Imprimir
         </button>
-        <a :href="metabaseDirectUrl" target="_blank" rel="noopener noreferrer" class="ts-btn ts-btn-primary" title="Abrir painel com dashboards avançados no Metabase">
-          📊 Abrir Metabase BI ↗
-        </a>
       </div>
     </div>
 
@@ -346,8 +343,7 @@ export default {
       selectedCollaborator: '',
       searchQuery: '',
       
-      activeReportTab: 'by-project',
-      metabaseDirectUrl: 'http://localhost:3000/dashboard/2'
+      activeReportTab: 'by-project'
     };
   },
   computed: {
