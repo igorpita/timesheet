@@ -26,9 +26,10 @@ npm run build
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_DIR/$PACKAGE_NAME"
 
-# 4. Criar pacote tar.gz contendo apenas arquivos de runtime do Nextcloud
+# 4. Criar pacote tar.gz contendo apenas arquivos de runtime do Nextcloud (sem arquivos ocultos do macOS)
 echo "🗜️ Criando arquivo compactado $PACKAGE_NAME..."
-tar -czf "$DIST_DIR/$PACKAGE_NAME" \
+export COPYFILE_DISABLE=1
+tar --exclude='._*' --exclude='.DS_Store' -czf "$DIST_DIR/$PACKAGE_NAME" \
     appinfo \
     lib \
     templates \
