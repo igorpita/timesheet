@@ -261,6 +261,102 @@ class DeckService {
     }
 
     /**
+     * Retorna os IDs dos quadros (projetos) em que o usuário é Dono (owner)
+     * ou possui permissão de "Pode gerenciar" (permission_manage = true).
+     *
+     * @return int[]
+     */
+    public function getManageableBoardIds(string $userUid): array {
+        try {
+            $qb = $this->db->getQueryBuilder();
+            $qb->selectDistinct('b.id')
+               ->from('deck_boards', 'b')
+               ->leftJoin('b', 'deck_board_acl', 'a', $qb->expr()->eq('a.board_id', 'b.id'))
+               ->where($qb->expr()->eq('b.deleted_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)))
+               ->andWhere(
+                   $qb->expr()->orX(
+                       $qb->expr()->eq('b.owner', $qb->createNamedParameter($userUid)),
+                       $qb->expr()->andX(
+                           $qb->expr()->eq('a.permission_manage', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+                           $qb->expr()->eq('a.participant', $qb->createNamedParameter($userUid))
+                       )
+                   )
+               );
+
+            $res = $qb->executeQuery();
+            $ids = [];
+            while ($row = $res->fetch()) {
+                $ids[] = (int)$row['id'];
+            }
+            return $ids;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Retorna todos os IDs dos cartões que pertencem a uma lista de quadros (projetos).
+     *
+     * @param int[] $boardIds
+     * @return string[]
+     */
+    public function getCardIdsForBoards(array $boardIds): array {
+        if (empty($boardIds)) {
+            return [];
+        }
+
+        try {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('c.id')
+               ->from('deck_cards', 'c')
+               ->innerJoin('c', 'deck_stacks', 's', $qb->expr()->eq('c.stack_id', 's.id'))
+               ->where($qb->expr()->in('s.board_id', $qb->createNamedParameter($boardIds, IQueryBuilder::PARAM_INT_ARRAY)))
+               ->andWhere($qb->expr()->eq('c.deleted_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)));
+
+            $res = $qb->executeQuery();
+            $cardIds = [];
+            while ($row = $res->fetch()) {
+                $cardIds[] = (string)$row['id'];
+            }
+            return $cardIds;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Verifica se o usuário é dono ou pode gerenciar o cartão do Deck.
+     */
+    public function canUserManageCard(string $cardId, string $userUid): bool {
+        try {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('b.id')
+               ->from('deck_cards', 'c')
+               ->innerJoin('c', 'deck_stacks', 's', $qb->expr()->eq('c.stack_id', 's.id'))
+               ->innerJoin('s', 'deck_boards', 'b', $qb->expr()->eq('s.board_id', 'b.id'))
+               ->leftJoin('b', 'deck_board_acl', 'a', $qb->expr()->eq('a.board_id', 'b.id'))
+               ->where($qb->expr()->eq('c.id', $qb->createNamedParameter((int)$cardId, IQueryBuilder::PARAM_INT)))
+               ->andWhere($qb->expr()->eq('c.deleted_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)))
+               ->andWhere($qb->expr()->eq('b.deleted_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)))
+               ->andWhere(
+                   $qb->expr()->orX(
+                       $qb->expr()->eq('b.owner', $qb->createNamedParameter($userUid)),
+                       $qb->expr()->andX(
+                           $qb->expr()->eq('a.permission_manage', $qb->createNamedParameter(true, IQueryBuilder::PARAM_BOOL)),
+                           $qb->expr()->eq('a.participant', $qb->createNamedParameter($userUid))
+                       )
+                   )
+               )
+               ->setMaxResults(1);
+
+            $res = $qb->executeQuery();
+            return (bool)$res->fetch();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Retorna detalhes de um cartão do Deck pelo ID.
      */
     public function getCardById(string $cardId): ?array {

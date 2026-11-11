@@ -105,6 +105,57 @@ class TimeEntryMapper extends QBMapper {
     }
 
     /**
+     * Consulta registros visíveis para o usuário:
+     * - Seus próprios registros OU
+     * - Registros em cartões de projetos/quadros em que possui gestão (allowedCardIds)
+     *
+     * @param string[] $allowedCardIds
+     * @return TimeEntry[]
+     */
+    public function findVisibleEntries(
+        string $userUid,
+        array $allowedCardIds = [],
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?string $filterUserUid = null
+    ): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+           ->from($this->getTableName());
+
+        if (!empty($allowedCardIds)) {
+            $scopeCondition = $qb->expr()->orX(
+                $qb->expr()->eq('user_uid', $qb->createNamedParameter($userUid)),
+                $qb->expr()->andX(
+                    $qb->expr()->eq('source_type', $qb->createNamedParameter('DECK')),
+                    $qb->expr()->in('external_id', $qb->createNamedParameter($allowedCardIds, \OCP\DB\QueryBuilder\IQueryBuilder::PARAM_STR_ARRAY))
+                )
+            );
+        } else {
+            $scopeCondition = $qb->expr()->eq('user_uid', $qb->createNamedParameter($userUid));
+        }
+
+        $qb->where($scopeCondition);
+
+        if (!empty($filterUserUid)) {
+            $qb->andWhere($qb->expr()->eq('user_uid', $qb->createNamedParameter($filterUserUid)));
+        }
+
+        if ($startDate !== null) {
+            $qb->andWhere($qb->expr()->gte('work_date', $qb->createNamedParameter($startDate)));
+        }
+        if ($endDate !== null) {
+            $qb->andWhere($qb->expr()->lte('work_date', $qb->createNamedParameter($endDate)));
+        }
+
+        $qb->orderBy('work_date', 'DESC')
+           ->addOrderBy('created_at', 'DESC')
+           ->setMaxResults(1000);
+
+        return $this->findEntities($qb);
+    }
+
+    /**
      * @return TimeEntry[]
      */
     public function findByExternal(string $sourceType, string $externalId): array {

@@ -29,25 +29,50 @@ class TimeEntryService {
     }
 
     public function getTeamEntries(?string $startDate = null, ?string $endDate = null, ?string $sourceType = null): array {
-        if (!$this->securityService->isManager()) {
-            throw new \RuntimeException('Acesso negado: apenas gestores podem consultar horas da equipe.');
+        $currentUser = $this->securityService->getCurrentUserUid();
+        $isGlobalManager = $this->securityService->isManager();
+
+        if ($isGlobalManager) {
+            return $this->entryMapper->findAllTeamEntries($startDate, $endDate, $sourceType);
         }
-        return $this->entryMapper->findAllTeamEntries($startDate, $endDate, $sourceType);
+
+        $managedBoardIds = $this->deckService ? $this->deckService->getManageableBoardIds($currentUser) : [];
+        if (empty($managedBoardIds)) {
+            throw new \RuntimeException('Acesso negado: apenas gestores globais ou responsáveis por projetos podem consultar registros da equipe.');
+        }
+
+        $managedCardIds = $this->deckService->getCardIdsForBoards($managedBoardIds);
+        return $this->entryMapper->findVisibleEntries($currentUser, $managedCardIds, $startDate, $endDate);
     }
 
     public function getReportsData(?string $startDate = null, ?string $endDate = null, ?string $userUid = null): array {
-        $isManager = $this->securityService->isManager();
+        $isGlobalManager = $this->securityService->isManager();
         $currentUser = $this->securityService->getCurrentUserUid();
 
-        if (!$isManager) {
-            // Colaboradores visualizam apenas seus próprios registros
-            $rawEntries = $this->entryMapper->findByUser($currentUser, $startDate, $endDate);
-        } else {
+        if ($isGlobalManager) {
+            // Administrador Global: visualiza tudo da organização
             if (!empty($userUid)) {
                 $rawEntries = $this->entryMapper->findByUser($userUid, $startDate, $endDate);
             } else {
                 $rawEntries = $this->entryMapper->findAllTeamEntries($startDate, $endDate, 'DECK');
             }
+            $isManager = true;
+        } else {
+            // Gestão contextual: Dono ou "Pode gerenciar" em quadros do Deck
+            $managedBoardIds = $this->deckService ? $this->deckService->getManageableBoardIds($currentUser) : [];
+            $managedCardIds = (!empty($managedBoardIds) && $this->deckService)
+                ? $this->deckService->getCardIdsForBoards($managedBoardIds)
+                : [];
+
+            $isManager = !empty($managedBoardIds);
+
+            $rawEntries = $this->entryMapper->findVisibleEntries(
+                $currentUser,
+                $managedCardIds,
+                $startDate,
+                $endDate,
+                $userUid
+            );
         }
 
         $entries = [];
@@ -98,14 +123,7 @@ class TimeEntryService {
 
             $u = $entry->getUserUid();
             if (!isset($userDisplayCache[$u])) {
-                $displayName = $u;
-                if ($this->userManager !== null) {
-                    $uObj = $this->userManager->get($u);
-                    if ($uObj !== null && !empty($uObj->getDisplayName())) {
-                        $displayName = $uObj->getDisplayName();
-                    }
-                }
-                $userDisplayCache[$u] = $displayName;
+                $userDisplayCache[$u] = $this->resolveUserDisplayName($u);
             }
             $userDisplayName = $userDisplayCache[$u];
 
@@ -198,6 +216,33 @@ class TimeEntryService {
             'byCollaborator' => $byCollaborator,
             'isManager' => $isManager,
         ];
+    }
+
+    public function resolveUserDisplayName(string $userUid): string {
+        if ($this->userManager !== null) {
+            try {
+                $dName = $this->userManager->getDisplayName($userUid);
+                if (!empty($dName)) {
+                    return $dName;
+                }
+                $user = $this->userManager->get($userUid);
+                if ($user !== null && !empty($user->getDisplayName())) {
+                    return $user->getDisplayName();
+                }
+                $lower = strtolower($userUid);
+                $dNameLower = $this->userManager->getDisplayName($lower);
+                if (!empty($dNameLower)) {
+                    return $dNameLower;
+                }
+                $userLower = $this->userManager->get($lower);
+                if ($userLower !== null && !empty($userLower->getDisplayName())) {
+                    return $userLower->getDisplayName();
+                }
+            } catch (\Throwable $e) {
+                // Ignore
+            }
+        }
+        return $userUid;
     }
 
     public function getEntry(string $id): TimeEntry {

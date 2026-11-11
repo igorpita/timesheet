@@ -27,9 +27,14 @@ class TeamApiController extends ApiController {
     public function entries(?string $startDate = null, ?string $endDate = null, ?string $sourceType = null): DataResponse {
         try {
             $entries = $this->entryService->getTeamEntries($startDate, $endDate, $sourceType);
+            $serialized = array_map(function ($e) {
+                $arr = $e->jsonSerialize();
+                $arr['userDisplayName'] = $this->entryService->resolveUserDisplayName($e->getUserUid());
+                return $arr;
+            }, $entries);
             return new DataResponse([
                 'success' => true,
-                'data' => $entries,
+                'data' => $serialized,
             ]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], Http::STATUS_FORBIDDEN);
@@ -51,7 +56,8 @@ class TeamApiController extends ApiController {
                 $totalMinutes += $mins;
 
                 $user = $entry->getUserUid();
-                $byUser[$user] = ($byUser[$user] ?? 0) + $mins;
+                $displayName = $this->entryService->resolveUserDisplayName($user);
+                $byUser[$displayName] = ($byUser[$displayName] ?? 0) + $mins;
 
                 $proj = $entry->getExternalTitle() ?? $entry->getExternalId();
                 if ($proj) {
