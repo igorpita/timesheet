@@ -14,71 +14,8 @@
   --ts-danger: #dc2626;
 }
 
-body {
-  background-color: #0f172a !important;
-}
-
 /* =========================================================
-   1. Nextcloud Native Header (#header) High Contrast Fix
-   ========================================================= */
-header#header,
-#header {
-  background-color: #0f172a !important;
-  background-image: none !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
-  z-index: 2000 !important;
-}
-
-#header-start__appmenu button,
-#header .header-menu button,
-#header button,
-#header a {
-  color: #ffffff !important;
-  fill: #ffffff !important;
-}
-
-#header-start__appmenu button:hover,
-#header .header-menu button:hover {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-#header .header-appname {
-  color: #ffffff !important;
-  font-weight: 700 !important;
-}
-
-/* Barra de pesquisa nativa do Nextcloud (Unified Search) */
-#header #unified-search,
-#header .unified-search,
-#header .unified-search-input {
-  color: #ffffff !important;
-}
-
-#header .unified-search-input__field {
-  background-color: rgba(255, 255, 255, 0.18) !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  border-radius: 8px !important;
-}
-
-#header .unified-search-input__resting,
-#header .unified-search-input__label,
-#header .unified-search-input__input {
-  color: #ffffff !important;
-}
-
-#header .unified-search-input svg,
-#header .unified-search svg,
-#header svg {
-  fill: #ffffff !important;
-  color: #ffffff !important;
-}
-
-#header input::placeholder {
-  color: rgba(255, 255, 255, 0.8) !important;
-}
-
-/* =========================================================
-   2. Nextcloud Full Canvas Reset (Starts strictly below #header)
+   1. Nextcloud Full Canvas (Starts strictly below #header)
    ========================================================= */
 #content.app-oab_timesheet {
   position: absolute !important;
