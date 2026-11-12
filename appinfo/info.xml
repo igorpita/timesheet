@@ -11,16 +11,21 @@ Principais recursos:
 - Painel analítico e sumarizado de horas por projeto, período e colaborador.
 - Integração direta no cartão do Nextcloud Deck para apontamento ágil.
 - Auditoria completa de alterações e relatórios gerenciais com exportação CSV.]]></description>
-    <version>0.2.9</version>
+    <version>0.2.10</version>
     <licence>agpl</licence>
     <author>Igor Pita</author>
     <namespace>OABTimesheet</namespace>
     <category>organization</category>
     <website>https://github.com/igorpita</website>
     <bugs>https://github.com/igorpita/timesheet/issues</bugs>
+    <repository type="git">https://github.com/igorpita/timesheet.git</repository>
+    <screenshot>https://raw.githubusercontent.com/igorpita/timesheet/main/screenshots/01-meu-timesheet.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/igorpita/timesheet/main/screenshots/02-projetos-deck.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/igorpita/timesheet/main/screenshots/03-modal-apontamento.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/igorpita/timesheet/main/screenshots/04-relatorios.png</screenshot>
     <dependencies>
-        <nextcloud min-version="28" max-version="36" />
         <php min-version="8.1" max-version="8.5" />
+        <nextcloud min-version="28" max-version="36" />
     </dependencies>
     <navigations>
         <navigation>
