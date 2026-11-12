@@ -65,7 +65,12 @@ if [ -f "$ROOT_DIR/oab_timesheet.key" ] && [ -f "$ROOT_DIR/oab_timesheet.crt" ];
         # Gerar o tar.gz oficial para a Nextcloud App Store (com pasta raiz oab_timesheet/)
         (cd "$STAGING_DIR" && tar --exclude='._*' --exclude='.DS_Store' -czf "$DIST_DIR/oab_timesheet.tar.gz" oab_timesheet)
         shasum -a 256 "$DIST_DIR/oab_timesheet.tar.gz" > "$DIST_DIR/oab_timesheet.tar.gz.sha256"
+        RELEASE_SIG=$(openssl dgst -sha512 -sign "$ROOT_DIR/oab_timesheet.key" "$DIST_DIR/oab_timesheet.tar.gz" | openssl base64 -A)
+        echo "$RELEASE_SIG" > "$DIST_DIR/oab_timesheet.tar.gz.sig"
         echo "✅ Pacote oficial assinado para Nextcloud App Store: $DIST_DIR/oab_timesheet.tar.gz"
+        echo "🔑 Assinatura da Release para colar na loja:"
+        echo "$RELEASE_SIG"
+        echo ""
         docker exec oab_timesheet_nextcloud rm -rf /tmp/staging_sign
     fi
     rm -rf "$STAGING_DIR"
