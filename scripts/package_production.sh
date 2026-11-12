@@ -26,7 +26,52 @@ npm run build
 mkdir -p "$DIST_DIR"
 rm -f "$DIST_DIR/$PACKAGE_NAME"
 
-# 4. Criar pacote tar.gz contendo apenas arquivos de runtime do Nextcloud (sem arquivos ocultos do macOS)
+# 4. Assinatura oficial do App (Nextcloud App Store) caso chave e certificado existam
+if [ -f "$ROOT_DIR/oab_timesheet.key" ] && [ -f "$ROOT_DIR/oab_timesheet.crt" ]; then
+    echo "🔐 Chave privada e certificado Nextcloud encontrados. Assinando aplicativo..."
+    
+    # Criar staging limpo para assinatura
+    STAGING_DIR="/tmp/nc_app_sign_staging"
+    rm -rf "$STAGING_DIR"
+    mkdir -p "$STAGING_DIR/oab_timesheet"
+
+    export COPYFILE_DISABLE=1
+    tar --exclude='._*' --exclude='.DS_Store' -cf - \
+        appinfo \
+        lib \
+        templates \
+        img \
+        js \
+        css \
+        README.md | tar -xf - -C "$STAGING_DIR/oab_timesheet"
+
+    # Se container local estiver ativo, assinar via occ docker
+    if docker ps | grep -q "oab_timesheet_nextcloud"; then
+        docker exec oab_timesheet_nextcloud rm -rf /tmp/staging_sign
+        docker exec oab_timesheet_nextcloud mkdir -p /tmp/staging_sign
+        docker cp "$STAGING_DIR/oab_timesheet" oab_timesheet_nextcloud:/tmp/staging_sign/
+        docker cp "$ROOT_DIR/oab_timesheet.key" oab_timesheet_nextcloud:/tmp/staging_sign/
+        docker cp "$ROOT_DIR/oab_timesheet.crt" oab_timesheet_nextcloud:/tmp/staging_sign/
+        docker exec oab_timesheet_nextcloud chown -R www-data:www-data /tmp/staging_sign
+        docker exec -u www-data oab_timesheet_nextcloud php occ integrity:sign-app \
+            --path=/tmp/staging_sign/oab_timesheet \
+            --privateKey=/tmp/staging_sign/oab_timesheet.key \
+            --certificate=/tmp/staging_sign/oab_timesheet.crt
+
+        # Copiar signature.json gerado de volta para o repositório e staging
+        docker cp oab_timesheet_nextcloud:/tmp/staging_sign/oab_timesheet/appinfo/signature.json "$ROOT_DIR/appinfo/signature.json"
+        cp "$ROOT_DIR/appinfo/signature.json" "$STAGING_DIR/oab_timesheet/appinfo/signature.json"
+        
+        # Gerar o tar.gz oficial para a Nextcloud App Store (com pasta raiz oab_timesheet/)
+        (cd "$STAGING_DIR" && tar --exclude='._*' --exclude='.DS_Store' -czf "$DIST_DIR/oab_timesheet.tar.gz" oab_timesheet)
+        shasum -a 256 "$DIST_DIR/oab_timesheet.tar.gz" > "$DIST_DIR/oab_timesheet.tar.gz.sha256"
+        echo "✅ Pacote oficial assinado para Nextcloud App Store: $DIST_DIR/oab_timesheet.tar.gz"
+        docker exec oab_timesheet_nextcloud rm -rf /tmp/staging_sign
+    fi
+    rm -rf "$STAGING_DIR"
+fi
+
+# 5. Criar pacote tar.gz direto para instalação manual (sem arquivos ocultos do macOS)
 echo "🗜️ Criando arquivo compactado $PACKAGE_NAME..."
 export COPYFILE_DISABLE=1
 tar --exclude='._*' --exclude='.DS_Store' -czf "$DIST_DIR/$PACKAGE_NAME" \
