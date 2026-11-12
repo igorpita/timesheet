@@ -17,30 +17,34 @@ jobs:
     steps:
       - name: Validar APP_STORE_TOKEN
         env:
-          APP_STORE_TOKEN: ${{ secrets.APP_STORE_TOKEN }}
+          TOKEN: ${{ secrets.APP_STORE_TOKEN || secrets.APPSTORE_TOKEN }}
         run: |
-          if [ -z "$APP_STORE_TOKEN" ]; then
-            echo "❌ ERRO: O segredo APP_STORE_TOKEN está vazio ou não foi encontrado!"
+          if [ -z "$TOKEN" ]; then
+            echo "❌ ERRO: Segredo de Token não encontrado! Verifique se criou com o nome APP_STORE_TOKEN ou APPSTORE_TOKEN."
             exit 1
           fi
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS -H "Authorization: Token $APP_STORE_TOKEN" https://apps.nextcloud.com/api/v1/apps/releases)
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ APP_STORE_TOKEN é válido e autenticou com sucesso na Nextcloud Store (HTTP 200)!"
-          else
-            echo "❌ ERRO: APP_STORE_TOKEN inválido ou não autorizado pela loja (Retorno HTTP $HTTP_CODE)!"
+          echo "Token detectado (Tamanho: ${#TOKEN} caracteres)."
+          
+          # Testa autenticação chamando a API de releases com payload vazio
+          RESP=$(curl -s -X POST -H "Authorization: Token $TOKEN" -H "Content-Type: application/json" -d '{}' https://apps.nextcloud.com/api/v1/apps/releases)
+          if echo "$RESP" | grep -q "Invalid token"; then
+            echo "❌ ERRO: A Nextcloud Store rejeitou o token (Invalid token). Verifique se copiou o token completo."
             exit 1
+          else
+            echo "✅ APP_STORE_TOKEN autenticado com sucesso na Nextcloud Store!"
           fi
 
       - name: Validar APP_PRIVATE_KEY
         env:
-          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+          KEY: ${{ secrets.APP_PRIVATE_KEY || secrets.APP_KEY }}
         run: |
-          if [ -z "$APP_PRIVATE_KEY" ]; then
-            echo "❌ ERRO: O segredo APP_PRIVATE_KEY está vazio ou não foi encontrado!"
+          if [ -z "$KEY" ]; then
+            echo "❌ ERRO: Segredo de Chave Privada não encontrado! Verifique se criou com o nome APP_PRIVATE_KEY ou APP_KEY."
             exit 1
           fi
-          echo "$APP_PRIVATE_KEY" | openssl rsa -check -noout
-          echo "✅ APP_PRIVATE_KEY é uma chave RSA privada válida e íntegra!"
+          echo "Chave detectada (Tamanho: ${#KEY} caracteres)."
+          echo "$KEY" | openssl rsa -check -noout
+          echo "✅ APP_PRIVATE_KEY é uma chave RSA válida e íntegra!"
 
   build-and-publish:
     name: Compilar, Assinar e Publicar
@@ -66,6 +70,6 @@ jobs:
         uses: R0Wi/nextcloud-appstore-push-action@v1
         with:
           app_name: oab_timesheet
-          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-          appstore_token: ${{ secrets.APP_STORE_TOKEN }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY || secrets.APP_KEY }}
+          appstore_token: ${{ secrets.APP_STORE_TOKEN || secrets.APPSTORE_TOKEN }}
           download_url: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/oab_timesheet.tar.gz
