@@ -1,12 +1,51 @@
 name: Publicar na Nextcloud App Store
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      test_secrets_only:
+        description: 'Apenas testar se os segredos estão corretos (sem publicar)'
+        type: boolean
+        default: true
+  release:
+    types: [published]
 
 jobs:
+  test-secrets:
+    name: Validar Segredos do Repositório
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar APP_STORE_TOKEN
+        env:
+          APP_STORE_TOKEN: ${{ secrets.APP_STORE_TOKEN }}
+        run: |
+          if [ -z "$APP_STORE_TOKEN" ]; then
+            echo "❌ ERRO: O segredo APP_STORE_TOKEN está vazio ou não foi encontrado!"
+            exit 1
+          fi
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS -H "Authorization: Token $APP_STORE_TOKEN" https://apps.nextcloud.com/api/v1/apps/releases)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ APP_STORE_TOKEN é válido e autenticou com sucesso na Nextcloud Store (HTTP 200)!"
+          else
+            echo "❌ ERRO: APP_STORE_TOKEN inválido ou não autorizado pela loja (Retorno HTTP $HTTP_CODE)!"
+            exit 1
+          fi
+
+      - name: Validar APP_PRIVATE_KEY
+        env:
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "❌ ERRO: O segredo APP_PRIVATE_KEY está vazio ou não foi encontrado!"
+            exit 1
+          fi
+          echo "$APP_PRIVATE_KEY" | openssl rsa -check -noout
+          echo "✅ APP_PRIVATE_KEY é uma chave RSA privada válida e íntegra!"
+
   build-and-publish:
+    name: Compilar, Assinar e Publicar
+    needs: test-secrets
+    if: ${{ github.event.inputs.test_secrets_only != 'true' && github.event_name == 'release' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout do código
@@ -24,9 +63,9 @@ jobs:
           npm run build
 
       - name: Empacotar e Publicar na Nextcloud App Store
-        uses: nextcloud/app-store-publisher@v1
+        uses: R0Wi/nextcloud-appstore-push-action@v1
         with:
-          app-id: oab_timesheet
-          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          app-store-token: ${{ secrets.APP_STORE_TOKEN }}
-
+          app_name: oab_timesheet
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          appstore_token: ${{ secrets.APP_STORE_TOKEN }}
+          download_url: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/oab_timesheet.tar.gz
