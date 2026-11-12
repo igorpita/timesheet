@@ -1,6 +1,6 @@
-# Manual de Implantação e Operação — OAB Timesheet
+# Manual de Implantação e Operação — Timesheet
 
-Este documento contém os procedimentos operacionais para implantação, migração, rotinas de backup e restauração do **OAB Timesheet** no ambiente de produção da **OAB-BA** (Docker Swarm + Portainer + Traefik).
+Este documento contém os procedimentos operacionais para implantação, migração, rotinas de backup e restauração do **Timesheet** em ambiente de produção (Docker Swarm + Portainer + Traefik).
 
 ---
 
@@ -15,8 +15,8 @@ Este documento contém os procedimentos operacionais para implantação, migraç
    openssl rand -base64 24 | docker secret create pg_password -
    ```
 3. **DNS Configurado:**
-   - `portal.oab-ba.org.br` -> IP do cluster (Nextcloud)
-   - `bi-timesheet.oab-ba.org.br` -> IP do cluster (Metabase)
+   - `nextcloud.example.com` -> IP do cluster (Nextcloud)
+   - `bi.example.com` -> IP do cluster (Metabase)
 
 ---
 
@@ -39,7 +39,7 @@ Após os containers iniciarem:
 # 1. Obter o ID do container do Nextcloud
 CONTAINER_ID=$(docker ps -qf "name=oab_timesheet_nextcloud")
 
-# 2. Habilitar o App OAB Timesheet e rodar as migrações automáticas
+# 2. Habilitar o App Timesheet e rodar as migrações automáticas
 docker exec -u www-data $CONTAINER_ID php occ app:enable oab_timesheet
 
 # 3. Aplicar as views analíticas no PostgreSQL para o Metabase
@@ -48,12 +48,12 @@ docker exec -i $(docker ps -qf "name=oab_timesheet_postgres") psql -U nextcloud 
 
 ---
 
-## 4. Configuração da Integração com o GLPI 12
+## 4. Configuração da Integração com o GLPI (Opcional)
 
 Para conectar com a API REST v2 do GLPI:
 ```bash
 # Definir URL base e tokens da API
-docker exec -u www-data $CONTAINER_ID php occ config:app:set oab_timesheet glpi_url --value="https://glpi.oab-ba.org.br/apirest.php"
+docker exec -u www-data $CONTAINER_ID php occ config:app:set oab_timesheet glpi_url --value="https://glpi.example.com/apirest.php"
 docker exec -u www-data $CONTAINER_ID php occ config:app:set oab_timesheet glpi_app_token --value="SEU_APP_TOKEN_AQUI"
 docker exec -u www-data $CONTAINER_ID php occ config:app:set oab_timesheet glpi_user_token --value="SEU_USER_TOKEN_AQUI"
 ```

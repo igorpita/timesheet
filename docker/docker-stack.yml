@@ -12,9 +12,9 @@ services:
       - POSTGRES_DB=nextcloud
       - POSTGRES_USER=nextcloud
       - POSTGRES_PASSWORD_FILE=/run/secrets/pg_password
-      - NEXTCLOUD_TRUSTED_DOMAINS=portal.oab-ba.org.br
+      - NEXTCLOUD_TRUSTED_DOMAINS=nextcloud.example.com
       - OVERWRITEPROTOCOL=https
-      - OVERWRITEHOST=portal.oab-ba.org.br
+      - OVERWRITEHOST=nextcloud.example.com
     volumes:
       - nextcloud_data:/var/www/html
       - timesheet_app:/var/www/html/custom_apps/oab_timesheet
@@ -34,7 +34,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
-        - "traefik.http.routers.nextcloud.rule=Host(`portal.oab-ba.org.br`)"
+        - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.example.com`)"
         - "traefik.http.routers.nextcloud.entrypoints=websecure"
         - "traefik.http.routers.nextcloud.tls.certresolver=letsencrypt"
         - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
@@ -83,7 +83,7 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
-        - "traefik.http.routers.metabase.rule=Host(`bi-timesheet.oab-ba.org.br`)"
+        - "traefik.http.routers.metabase.rule=Host(`bi.example.com`)"
         - "traefik.http.routers.metabase.entrypoints=websecure"
         - "traefik.http.routers.metabase.tls.certresolver=letsencrypt"
         - "traefik.http.services.metabase.loadbalancer.server.port=3000"

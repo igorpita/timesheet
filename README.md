@@ -1,105 +1,144 @@
 # Timesheet — Apontamento de Horas Integrado ao Nextcloud Deck
 
-Aplicação de apontamento, acompanhamento e consolidação de esforço integrada ao **Nextcloud Deck**.
-**Autor:** Igor Pita
+[![Nextcloud App Store](https://img.shields.io/badge/Nextcloud%20App%20Store-Timesheet-0082c9?logo=nextcloud&logoColor=white)](https://apps.nextcloud.com/apps/oab_timesheet)
+[![Compatibilidade Nextcloud](https://img.shields.io/badge/Nextcloud-28%20--%2036-blue?logo=nextcloud)](https://apps.nextcloud.com/apps/oab_timesheet)
+[![PHP](https://img.shields.io/badge/PHP-8.1%20--%208.5-777bb4?logo=php&logoColor=white)](https://www.php.net/)
+[![Licença](https://img.shields.io/badge/Licen%C3%A7a-AGPL--3.0-green.svg)](LICENSE)
+
+Aplicação moderna e intuitiva para apontamento, gestão e auditoria de esforço profissional totalmente integrada aos quadros e cartões do **Nextcloud Deck**.
+
+**Autor:** [Igor Pita](https://github.com/igorpita)  
+**ID do Aplicativo:** `oab_timesheet`  
+**Página Oficial na Loja:** [apps.nextcloud.com/apps/oab_timesheet](https://apps.nextcloud.com/apps/oab_timesheet)
 
 ---
 
-## 🎯 Princípios Fundamentais
+## 📸 Demonstração Visual
 
-1. **Fonte Única da Verdade:**
-   - **Nextcloud Deck:** Projetos e tarefas oficiais.
-   - O **Timesheet** não cria nem duplica tarefas; apenas registra e consolida o esforço (`time_entries`) referenciando os cartões de projeto.
-2. **Sem Senhas Paralelas:** Autenticação centralizada e nativa através da sessão do Nextcloud.
-3. **Agilidade no Fluxo de Trabalho:** Apontamento direto dentro do card do Deck ou na interface centralizada do app.
-4. **Inteligência Gerencial:** Base PostgreSQL pronta para relatórios analíticos nativos e visualizações no **Metabase**.
+### 1. Meu Timesheet — Grade Semanal e Indicadores
+Acompanhe seus lançamentos diários com visão semanal completa, totalizadores de horas por dia, status de aprovação e cartões de resumo de esforço.
+![Meu Timesheet](screenshots/01-meu-timesheet.png)
+
+### 2. Projetos e Demandas do Deck
+Navegue diretamente pelos seus quadros e cartões do Nextcloud Deck. Filtre por projetos específicos ou ative a opção **"Atribuídos a mim"** para encontrar rapidamente as tarefas sob sua responsabilidade.
+![Projetos Deck](screenshots/02-projetos-deck.png)
+
+### 3. Registro Ágil de Horas (Modal de Apontamento)
+Lance horas de forma rápida e precisa selecionando data, tarefa de destino, duração e descrição detalhada da atividade realizada.
+![Modal de Apontamento](screenshots/03-modal-apontamento.png)
+
+### 4. Relatórios Analíticos e Auditoria Gerencial
+Filtre lançamentos por período, colaborador ou projeto. Visualize totais consolidados e exporte a grade completa para planilhas em formato **CSV**.
+![Relatórios](screenshots/04-relatorios.png)
 
 ---
 
-## 🗂️ Estrutura do Projeto
+## ✨ Principais Recursos
+
+- **Integração Nativa com o Nextcloud Deck:** Consulta e vincula horas diretamente aos cartões e quadros existentes, sem duplicar tarefas.
+- **Autenticação Unificada (Single Sign-On):** Utiliza a própria sessão do usuário no Nextcloud, sem necessidade de logins ou senhas adicionais.
+- **Grade Semanal Interativa:** Navegação intuitiva entre semanas com somatório diário e indicação visual do progresso.
+- **Controle de Acesso e Permissões:** Colaboradores acompanham seus próprios lançamentos; gestores e donos de quadros têm visão ampla dos projetos sob sua liderança.
+- **Trilha de Auditoria Completa:** Registro transparente de alterações e histórico para conformidade e governança.
+- **Exportação de Dados:** Exportação de relatórios em CSV para faturamento, prestação de contas ou folha de ponto.
+- **BI / Metabase Ready:** Acompanha scripts de views SQL para integração direta com dashboards no Metabase ou ferramentas de BI.
+
+---
+
+## 💻 Requisitos do Sistema
+
+- **Nextcloud:** 28.x até 36.x
+- **PHP:** 8.1 até 8.5
+- **Banco de Dados:** PostgreSQL, MariaDB ou MySQL
+- **Dependência:** Aplicativo **Deck** habilitado no Nextcloud
+
+---
+
+## 📦 Como Instalar
+
+### Método 1: Pela Loja de Aplicativos do Nextcloud (Recomendado)
+1. Acesse seu Nextcloud como Administrador.
+2. Abra o menu superior e clique em **Aplicativos** (ou *Apps*).
+3. Na categoria **Organização** ou utilizando a barra de busca, pesquise por **Timesheet**.
+4. Clique em **Baixar e ativar**.
+
+### Método 2: Instalação Manual
+1. Baixe o pacote mais recente `oab_timesheet.tar.gz` na página de [Releases](https://github.com/igorpita/timesheet/releases).
+2. Extraia o conteúdo no diretório de aplicativos do seu Nextcloud (ex: `/var/www/html/custom_apps/` ou `apps/`):
+   ```bash
+   tar -xzf oab_timesheet.tar.gz -C /var/www/html/custom_apps/
+   chown -R www-data:www-data /var/www/html/custom_apps/oab_timesheet
+   ```
+3. Habilite o aplicativo via terminal com o comando `occ`:
+   ```bash
+   sudo -u www-data php /var/www/html/occ app:enable oab_timesheet
+   ```
+
+---
+
+## 🛠️ Como Usar
+
+1. **Acessando o Timesheet:**
+   - No menu superior do Nextcloud, clique no ícone **Timesheet**.
+2. **Lançando Horas:**
+   - Na aba **Meu Timesheet**, clique no botão **Novo Apontamento** no topo ou dê um clique em qualquer dia da semana.
+   - Selecione a origem da demanda (**Deck**), escolha o cartão correspondente, informe o tempo trabalhado e a descrição da atividade.
+3. **Lançando a partir de Projetos:**
+   - Acesse a aba **Projetos (Deck)**, selecione o quadro desejado e clique no botão de apontamento direto no cartão.
+4. **Gerando Relatórios e Exportação:**
+   - Acesse a aba **Relatórios**, defina o intervalo de datas desejado e filtre por projeto ou usuário.
+   - Clique em **Exportar CSV** para baixar a planilha consolidada.
+
+---
+
+## 🏗️ Estrutura do Código-Fonte
 
 ```
 timesheet/
 ├── appinfo/
-│   ├── info.xml            # Metadados e dependências do App Nextcloud
-│   └── routes.php          # Rotas de navegação e APIs REST v1
+│   ├── info.xml            # Metadados oficiais, versão e dependências
+│   ├── routes.php          # Rotas de navegação e endpoints REST
+│   └── signature.json      # Assinatura de integridade Nextcloud Code Signing
 ├── lib/
-│   ├── AppInfo/
-│   │   └── Application.php # Container de injeção de dependência e bootstrap
-│   ├── Controller/
-│   │   ├── PageController.php          # Renderização da SPA
-│   │   ├── TimeEntryApiController.php  # CRUD de apontamentos com auditoria
-│   │   ├── DeckApiController.php       # Consulta de quadros e cartões Deck
-│   │   ├── GlpiApiController.php       # Pesquisa de chamados e fila GLPI
-│   │   └── TeamApiController.php       # Visão consolidada para gestores
-│   ├── Db/
-│   │   ├── TimeEntry.php & Mapper.php  # Entidade de registro de horas
-│   │   ├── AuditLog.php & Mapper.php   # Trilha de auditoria completa
-│   │   └── SyncQueue.php & Mapper.php  # Fila de sincronização GLPI
-│   ├── Migration/
-│   │   └── Version000001Date...php     # Schema do banco de dados (Doctrine)
-│   └── Service/
-│       ├── TimeEntryService.php        # Regras de negócio e idempotência
-│       └── SecurityService.php         # Controle de perfis e permissões ACL
-├── templates/
-│   └── main.php            # Ponto de montagem da aplicação no Nextcloud
-├── src/                    # Frontend SPA (Vue 3 + Axios)
-│   ├── components/         # Modais de apontamento manual e histórico
-│   ├── views/              # Meu Timesheet, Projetos Deck, Chamados GLPI, Equipe, Relatórios
-│   ├── services/api.js     # Cliente API com CSRF token do Nextcloud
-│   ├── App.vue             # Componente raiz com navegação por abas
-│   └── main.js             # Ponto de entrada do bundle
-├── css/
-│   └── app.css             # Estilização moderna alinhada ao Nextcloud
-├── js/
-│   └── oab-timesheet-main.js # Bundle compilado pronto para execução
-├── docker/
-│   ├── docker-compose.yml  # Ambiente local: Nextcloud 30 + PostgreSQL 16 + Metabase
-│   └── init-db.sql         # Script de inicialização do banco
-└── especificacoes_iniciais.md # Documento de referência original
+│   ├── AppInfo/            # Inicialização e bootstrap do app
+│   ├── Controller/         # Controladores da SPA e APIs REST
+│   ├── Db/                 # Entidades, Mappers e Trilha de Auditoria
+│   ├── Integration/Deck/   # Serviços de integração com a API do Deck
+│   ├── Migration/          # Migrações Doctrine do banco de dados
+│   └── Service/            # Regras de negócio, segurança e ACLs
+├── src/                    # Frontend em Vue 3 (SPA)
+│   ├── components/         # Modais de lançamento e auditoria
+│   ├── views/              # Telas (Meu Timesheet, Projetos Deck, Relatórios)
+│   ├── services/api.js     # Cliente HTTP Axios com suporte a CSRF
+│   └── App.vue             # Componente raiz da interface
+├── docker/                 # Ambiente de desenvolvimento local e scripts SQL
+├── screenshots/            # Capturas de tela demonstrativas em alta resolução
+└── scripts/
+    ├── capture_screenshots.js # Script de automação para captura de telas
+    └── package_production.sh  # Script de compilação, assinatura e empacotamento
 ```
 
 ---
 
-## 🚀 Como Executar em Desenvolvimento
+## 👨‍💻 Desenvolvimento Local
 
-### 1. Compilar o Frontend (Vue 3)
 ```bash
-# Instalar dependências
+# 1. Instalar dependências do frontend
 npm install
 
-# Compilar bundle de produção
-npm run build
-
-# Ou modo watch durante desenvolvimento da interface
+# 2. Modo de desenvolvimento com Hot Reload / Watch
 npm run dev
-```
 
-### 2. Subir o Ambiente Docker Local
-```bash
-cd docker
-docker compose up -d
-```
-
-O ambiente disponibiliza:
-- **Nextcloud:** [http://localhost:8080](http://localhost:8080) (usuário `admin` / senha `admin_secret`)
-- **PostgreSQL 16:** Porta `5432`
-- **Metabase BI:** [http://localhost:3000](http://localhost:3000)
-
-### 3. Habilitar o Aplicativo no Nextcloud
-Dentro do container Nextcloud (ou pelo painel de Apps):
-```bash
-docker exec -u www-data oab_timesheet_nextcloud php occ app:enable oab_timesheet
+# 3. Compilar bundle de produção
+npm run build
 ```
 
 ---
 
-## 📊 Status das Entregas (Roadmap de 6 Sprints)
+## 📄 Licença
 
-- [x] **Sprint 1 — Fundação, Arquitetura e Estrutura do App Nextcloud** (Concluído)
-- [x] **Sprint 2 — Integração Avançada com Deck API & ACLs** (Concluído)
-- [x] **Sprint 3 — Motor de Apontamento Avançado, Visão Semanal em Grade e Auditoria** (Concluído)
-- [x] **Sprint 4 — Integração GLPI 12 (Cliente REST v2, Idempotência e Worker de Sincronização)** (Concluído)
-- [x] **Sprint 5 — PoC de Integração Visual no Deck e Views Analíticas Metabase** (Concluído)
-- [x] **Sprint 6 — Homologação, Guia de Operação e Deploy de Produção (Docker Swarm + Portainer)** (Concluído)
+Este projeto é distribuído sob os termos da licença **GNU Affero General Public License v3.0 (AGPL-3.0)**. Consulte os detalhes no arquivo de metadados [`appinfo/info.xml`](appinfo/info.xml).
 
+---
+
+Desenvolvido por **[Igor Pita](https://github.com/igorpita)**.
